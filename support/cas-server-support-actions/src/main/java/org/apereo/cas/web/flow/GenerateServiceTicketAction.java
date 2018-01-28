@@ -1,11 +1,14 @@
 package org.apereo.cas.web.flow;
 
+import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apereo.cas.CasProtocolConstants;
 import org.apereo.cas.CentralAuthenticationService;
 import org.apereo.cas.authentication.Authentication;
 import org.apereo.cas.authentication.AuthenticationException;
 import org.apereo.cas.authentication.AuthenticationResult;
 import org.apereo.cas.authentication.AuthenticationResultBuilder;
+import org.apereo.cas.authentication.AuthenticationServiceSelectionPlan;
 import org.apereo.cas.authentication.AuthenticationSystemSupport;
 import org.apereo.cas.authentication.Credential;
 import org.apereo.cas.authentication.principal.Service;
@@ -16,8 +19,6 @@ import org.apereo.cas.ticket.InvalidTicketException;
 import org.apereo.cas.ticket.ServiceTicket;
 import org.apereo.cas.ticket.registry.TicketRegistrySupport;
 import org.apereo.cas.web.support.WebUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.util.StringUtils;
 import org.springframework.webflow.action.AbstractAction;
 import org.springframework.webflow.action.EventFactorySupport;
@@ -32,22 +33,15 @@ import org.springframework.webflow.execution.RequestContext;
  * @author Scott Battaglia
  * @since 3.0.0
  */
+@Slf4j
+@AllArgsConstructor
 public class GenerateServiceTicketAction extends AbstractAction {
-    private static final Logger LOGGER = LoggerFactory.getLogger(GenerateServiceTicketAction.class);
-    private final CentralAuthenticationService centralAuthenticationService;
-    private final AuthenticationSystemSupport authenticationSystemSupport;
-    private final TicketRegistrySupport ticketRegistrySupport;
-    private final ServicesManager servicesManager;
 
-    public GenerateServiceTicketAction(final AuthenticationSystemSupport authenticationSystemSupport,
-                                       final CentralAuthenticationService authenticationService,
-                                       final TicketRegistrySupport ticketRegistrySupport,
-                                       final ServicesManager servicesManager) {
-        this.authenticationSystemSupport = authenticationSystemSupport;
-        this.centralAuthenticationService = authenticationService;
-        this.ticketRegistrySupport = ticketRegistrySupport;
-        this.servicesManager = servicesManager;
-    }
+    private final AuthenticationSystemSupport authenticationSystemSupport;
+    private final CentralAuthenticationService centralAuthenticationService;
+    private final TicketRegistrySupport ticketRegistrySupport;
+    private final AuthenticationServiceSelectionPlan authenticationRequestServiceSelectionStrategies;
+    private final ServicesManager servicesManager;
 
     /**
      * {@inheritDoc}
@@ -75,7 +69,8 @@ public class GenerateServiceTicketAction extends AbstractAction {
                         + ticketGrantingTicket), ticketGrantingTicket);
             }
 
-            final RegisteredService registeredService = servicesManager.findServiceBy(service);
+            final Service selectedService = authenticationRequestServiceSelectionStrategies.resolveService(service);
+            final RegisteredService registeredService = servicesManager.findServiceBy(selectedService);
             LOGGER.debug("Registered service asking for service ticket is [{}]", registeredService);
             WebUtils.putRegisteredService(context, registeredService);
             WebUtils.putService(context, service);
